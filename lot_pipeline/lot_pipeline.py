@@ -30,6 +30,8 @@ class PullLotURLsFromSale(luigi.Task):
 
         lots_container = soup_lot.find(id='ResultContainer')
 
+        driver.close()
+
         with open(out_fp, 'w') as out_file:
             for li in lots_container.children:
                 if li == '\n':
@@ -38,6 +40,8 @@ class PullLotURLsFromSale(luigi.Task):
                 info_container = li.find('span', {'class':'infoContainer'})
                 lot_no = info_container.p.text.strip().split()[1]
                 out_file.write("{0}, {1}\n".format(lot_no, lot_href))
+
+        driver.close()
 
 
 class CacheLotHTMLFromUrl(luigi.Task):
