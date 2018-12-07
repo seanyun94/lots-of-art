@@ -22,13 +22,33 @@ class LotData:
      - Provenance
     '''
     
-    def __init__(self, lot_html, ids):
+    def __init__(self, lot_html):
         self.soup = BeautifulSoup(lot_html)
-        
-        self.ids = ids
-        
-        details = soup.find(id = "main_center_0_lblLotDescription").text
-        details_as_list = [i.strip() for i in details.strip().split('\n')]
+
+        self.lot_details = self.get_lot_details()
+
+    def __repr__(self):
+        return '{0}({1})'.format(self.__class__.__name__,
+                              self.get_lot_no())
+
+    def lot_data_as_list(self):
+
+        data = []
+
+        data.append(self.get_lot_no())
+        data.append(self.get_artist())
+        data.append(self.get_title())
+        data.append(self.get_year_of_birth())
+        data.append(self.get_year_of_death())
+        data.append(self.get_estimate())
+        data.append(self.get_artist_signature())
+        data.append(self.get_medium())
+        data.append(self.get_size())
+        data.append(self.get_year_of_creation())
+        data.append(self.get_provenence())
+        data.append(self.get_image())
+
+        return data
     
     def get_image(self):
         image_section = self.soup.find(id='main_center_0_imgCarouselMain')
@@ -38,7 +58,7 @@ class LotData:
         return int(self.soup.find(id='main_center_0_lblLotNumber').strip())
     
     def get_artist(self):
-        primary_title = self.soup.find(id="main_center_0_lblLotPrimaryTitle").text
+        primary_title = self.get_primary_title()
         artist_name_split = primary_title.strip().split()[:-1]
 
         return ' '.join(artist_name_split)
@@ -47,19 +67,15 @@ class LotData:
         lot_title = self.soup.find(id="main_center_0_lblLotSecondaryTitle").text
         return lot_title.strip()
     
-    def get_date_of_birth(self):
+    def get_year_of_birth(self):
         primary_title = self.get_primary_title()
-        dates = primary_title.split()[-1][1:-1].split('-')
-        return int(dates[0])
+        years = primary_title.split()[-1][1:-1].split('-')
+        return int(years[0])
     
-    def get_date_of_death(self):
+    def get_year_of_death(self):
         primary_title = self.get_primary_title()
-        dates = primary_title.split()[-1][1:-1].split('-')
-        return int(dates[1])
-    
-    def get_primary_title(self):
-        primary_title = self.soup.find(id="main_center_0_lblLotPrimaryTitle").text
-        return primary_title.strip()
+        years = primary_title.split()[-1][1:-1].split('-')
+        return int(years[1])
     
     def get_price_sold(self):
         price = self.soup.find(id="main_center_0_lblPriceRealizedPrimary").text
@@ -86,4 +102,13 @@ class LotData:
     
     def get_provenence(self):
         return self.soup.find(id='main_center_0_lblLotProvenance').text
-    
+
+    def get_primary_title(self):
+        primary_title = self.soup.find(id="main_center_0_lblLotPrimaryTitle").text
+        return primary_title.strip()
+
+    def get_lot_details(self):
+        details = self.soup.find(id = "main_center_0_lblLotDescription").text
+        details_as_list = [i.strip() for i in details.strip().split('\n')]
+
+        return details_as_list

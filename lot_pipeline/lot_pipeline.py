@@ -1,8 +1,9 @@
-import os, sys
+import os, sys, csv
 from urllib import request
 import luigi
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from lot_data import LotData
 
 class PullLotURLsFromSale(luigi.Task):
 
@@ -41,9 +42,6 @@ class PullLotURLsFromSale(luigi.Task):
                 lot_no = info_container.p.text.strip().split()[1]
                 out_file.write("{0}, {1}\n".format(lot_no, lot_href))
 
-        driver.close()
-
-
 class CacheLotHTMLFromUrl(luigi.Task):
     ''' Pull the HTML doc from a url to lot information and cache it
     '''
@@ -73,7 +71,7 @@ class CacheLotHTMLFromUrl(luigi.Task):
                 lot_html = response.read()
 
                 soup = BeautifulSoup(lot_html)
-                with open("data/html/{0}/lot_{1}.html".format(sale_name, line_split[0]), 'w') as html_file:
+                with open("data/html/{0}/lot_{1}.html".format(self.sale_name, line_split[0]), 'w') as html_file:
                     html_file.write(soup.find(id = "MainContent").prettify())
 
         with open(self.output(), 'w') as flag_file:
@@ -82,15 +80,23 @@ class CacheLotHTMLFromUrl(luigi.Task):
 class PullLotDataFromHtml(luigi.Task):
 
     lot_no = luigi.Parameter()
+    sale_url = luigi.Parameter()
 
     def output(self):
-        return luigi.LocalTarget("data/{}_lot_info.csv".format(sale_name))
+    	sales_url_split = self.lot_urls.strip().split('/')
+        self.sale_name = sale_url_split[3].split('.')[0]
+        return luigi.LocalTarget("data/{}_lot_info.csv".format(self.sale_name))
 
     def requires(self):
         #Get sale names from lot_urls, return Cache task as requirement
-        return [CacheLotHTMLFromUrl(sale_name) for sale_name in sales]
+        return CacheLotHTMLFromUrl(sale_name)
     def run(self):
-        pass
+    	lot_html_dir = "data/html/{}/".format(self.sale_name)
+    	with open(self.output(), 'w') as lot_csv:
+            writer = csv.writer(lot_csv)
+    		for lot_html in os.listdir(lot_html_dir):
+    			lot_info = LotData(lot_html)
+    			writer.writerow("{}\n".format(lot_info.lot_data_as_list(self)))
 
 if __name__ = "__main__":
     luigi.run()
