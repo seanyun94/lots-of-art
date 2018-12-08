@@ -16,13 +16,15 @@ class PullLotURLsFromSale(luigi.Task):
         if not os.path.exists('data/'):
             os.mkdir('data/')
 
-        sales_url_split = self.sale_url.strip().split('/')
+        sale_url_split = self.sale_url.strip().split('/')
+
+        # Sale url ends in .aspx
         sale_name = sale_url_split[3][:-5]
         return luigi.LocalTarget("data/{}_lot_urls.csv".format(sale_name))
 
     def run(self):
         driver = webdriver.Chrome()
-        driver.get(sale_url)
+        driver.get(self.sale_url)
 
         load_all_link = driver.find_element_by_class_name('load-all')
         load_all_link.click()
@@ -33,7 +35,7 @@ class PullLotURLsFromSale(luigi.Task):
 
         driver.close()
 
-        with open(out_fp, 'w') as out_file:
+        with self.output().open('w') as out_file:
             for li in lots_container.children:
                 if li == '\n':
                     continue
@@ -48,11 +50,11 @@ class CacheLotHTMLFromUrl(luigi.Task):
     sale_url = luigi.Parameter()
 
     def output(self):
-        sales_url_split = self.lot_urls.strip().split('/')
+        sale_url_split = self.sale_url.strip().split('/')
         self.sale_name = sale_url_split[3].split('.')[0]
-        return luigi.LocalTarget("data/html/flag_{}".format(sale_name))
+        return luigi.LocalTarget("data/html/flag_{}".format(self.sale_name))
 
-    def requires():
+    def requires(self):
         return PullLotURLsFromSale(self.sale_url)
 
     def run(self):
@@ -60,12 +62,13 @@ class CacheLotHTMLFromUrl(luigi.Task):
         if not os.path.exists('data/html/'):
             os.mkdir('data/html')
 
-        elif if not os.path.exists("data/html/{}/".format(self.sale_name)):
+        elif not os.path.exists("data/html/{}/".format(self.sale_name)):
             os.mkdir("data/html/{}/".format(self.sale_name))
 
         with open("data/{}_lot_urls.csv".format(self.sale_name), 'r') as f:
             for line in f:
                 line_split = line.strip().split(',')
+                lot_url = line_split[1]
         
                 response = request.urlopen(lot_url)
                 lot_html = response.read()
@@ -74,29 +77,29 @@ class CacheLotHTMLFromUrl(luigi.Task):
                 with open("data/html/{0}/lot_{1}.html".format(self.sale_name, line_split[0]), 'w') as html_file:
                     html_file.write(soup.find(id = "MainContent").prettify())
 
-        with open(self.output(), 'w') as flag_file:
-            flag_file.write(' ')
+        with self.output().open('w') as flag_file:
+            flag_file.write('Finished writing html files!')
 
 class PullLotDataFromHtml(luigi.Task):
 
-    lot_no = luigi.Parameter()
     sale_url = luigi.Parameter()
 
     def output(self):
-    	sales_url_split = self.lot_urls.strip().split('/')
+        sale_url_split = self.sale_url.strip().split('/')
         self.sale_name = sale_url_split[3].split('.')[0]
         return luigi.LocalTarget("data/{}_lot_info.csv".format(self.sale_name))
 
     def requires(self):
         #Get sale names from lot_urls, return Cache task as requirement
-        return CacheLotHTMLFromUrl(sale_name)
+        return CacheLotHTMLFromUrl(self.sale_url)
     def run(self):
-    	lot_html_dir = "data/html/{}/".format(self.sale_name)
-    	with open(self.output(), 'w') as lot_csv:
+        lot_html_dir = "data/html/{}/".format(self.sale_name)
+        with self.output().open('w') as lot_csv:
             writer = csv.writer(lot_csv)
-    		for lot_html in os.listdir(lot_html_dir):
-    			lot_info = LotData(lot_html)
-    			writer.writerow("{}\n".format(lot_info.lot_data_as_list(self)))
+            for lot_html in os.listdir(lot_html_dir):
+                    with open(lot_html_dir + lot_html, 'r') as html_file:
+                        lot_info = LotData(html_file)
+                        writer.writerow(lot_info.lot_data_as_list())
 
-if __name__ = "__main__":
-    luigi.run()
+if __name__ == "__main__":
+    luigi.build([PullLotDataFromHtml(sale_url="https://www.christies.com/impressionist-and-modern-art-27255.aspx")], local_scheduler=True)

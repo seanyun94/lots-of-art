@@ -23,7 +23,7 @@ class LotData:
     '''
     
     def __init__(self, lot_html):
-        self.soup = BeautifulSoup(lot_html)
+        self.soup = BeautifulSoup(lot_html, 'html.parser')
 
         self.lot_details = self.get_lot_details()
 
@@ -40,10 +40,15 @@ class LotData:
         data.append(self.get_title())
         data.append(self.get_year_of_birth())
         data.append(self.get_year_of_death())
+        data.append(self.get_price_sold())
         data.append(self.get_estimate())
         data.append(self.get_artist_signature())
         data.append(self.get_medium())
-        data.append(self.get_size())
+        
+        dim0, dim1 = self.get_size()
+        data.append(dim0)
+        data.append(dim1)
+        
         data.append(self.get_year_of_creation())
         data.append(self.get_provenence())
         data.append(self.get_image())
@@ -55,11 +60,14 @@ class LotData:
         return image_section.find('img').get('src')
     
     def get_lot_no(self):
-        return int(self.soup.find(id='main_center_0_lblLotNumber').strip())
+        return self.soup.find(id='main_center_0_lblLotNumber').text.strip()
     
     def get_artist(self):
         primary_title = self.get_primary_title()
-        artist_name_split = primary_title.strip().split()[:-1]
+        if 'b.' in primary_title:
+            artist_name_split = primary_title.strip().split()[:-2]
+        else:
+            artist_name_split = primary_title.strip().split()[:-1]
 
         return ' '.join(artist_name_split)
     
@@ -69,13 +77,19 @@ class LotData:
     
     def get_year_of_birth(self):
         primary_title = self.get_primary_title()
+        
+        if 'b.' in primary_title:
+            return primary_title.split()[-1].replace(')', '')
+        
         years = primary_title.split()[-1][1:-1].split('-')
-        return int(years[0])
+        return years[0]
     
     def get_year_of_death(self):
         primary_title = self.get_primary_title()
+        if 'b.' in primary_title:
+            return 'N.A.'
         years = primary_title.split()[-1][1:-1].split('-')
-        return int(years[1])
+        return years[1]
     
     def get_price_sold(self):
         price = self.soup.find(id="main_center_0_lblPriceRealizedPrimary").text
@@ -85,30 +99,62 @@ class LotData:
         estimate = self.soup.find(id="main_center_0_lblPriceEstimatedPrimary").text
         return estimate.strip()
     
-    def get_artist_signature(self):        
-        return self.lot_details[3]
+    def get_artist_signature(self):
+        if len(self.lot_details) == 7:
+            return 'N.A.'
+        return self.lot_details[2]
     
     def get_medium(self):
-        return self.lot_details[4]
+        return self.lot_details[3]
     
     def get_size(self):
-        if len(self.lot_details) == 6:
-            return self.lot_details[4]
+        if len(self.lot_details) <= 6:
+            create_words = ('Painted','Conceived', 'Executed')
+            if not any(s in self.lot_details[-1] for s in create_words):
+                dimensions = self.lot_details[-1].split()[-4:-1]
+                length = dimensions[-3].strip('(')
+                width = dimensions[-1]
+
+                return length, width
+                
+            if 'x' not in self.lot_details[-2]:
+                dimensions = self.lot_details[-2].split()[-4:-1]
+                return (dimensions[-1].strip('('), 'N.A.')
+            
+            dimensions = self.lot_details[-2].split()[-4:-1]
+            length = dimensions[-3].strip('(')
+            width = dimensions[-1]
+            
+            return length, width
         
-        return self.lot_details[4:5]
+        dimensions = self.lot_details[4:6]
+        values = []
+        for dim in dimensions:
+            dim_value = dim.strip().split()[-2].strip('(')
+            values.append(dim_value)
+            
+        return tuple(values)
     
     def get_year_of_creation(self):
+        create_words = ('Painted','Conceived', 'Executed')
+        if not any(s in self.lot_details[-1] for s in create_words):
+            return 'N.A.'
         return self.lot_details[-1]
     
     def get_provenence(self):
-        return self.soup.find(id='main_center_0_lblLotProvenance').text
+        return self.soup.find(id='main_center_0_lblLotProvenance').text.replace('\r\n', ' ')
 
     def get_primary_title(self):
         primary_title = self.soup.find(id="main_center_0_lblLotPrimaryTitle").text
         return primary_title.strip()
 
     def get_lot_details(self):
-        details = self.soup.find(id = "main_center_0_lblLotDescription").text
-        details_as_list = [i.strip() for i in details.strip().split('\n')]
+        text = self.soup.find(id = "main_center_0_lblLotDescription").prettify()
+        text = text.replace('<span id="main_center_0_lblLotDescription">', '')
+        text = text.replace('</span>', '')
+        text = text.replace('\n', '')
+        text = text.replace('</i>', '').replace('<i>', '')
+        text = text.strip().split("<br/>")[:-1]
+        details_as_list = [i.strip() for i in text]
 
         return details_as_list
