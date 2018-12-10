@@ -1,9 +1,6 @@
 # Lobus Challenge
 Completed by Sean Yun
 
-## Objective
-As stated in the challenge specifications, given a scenario where someone has to complete a sequence of tasks in a multi-story building where the elevator is not free to ride, minimize the total cost of riding the elevator while completing at least one task on each floor that is visited.
-
 ## Dependencies
 ### Environment setup
 This solution uses Python 3.7. Various Python modules are utilized, including numpy, pandas, Beautiful Soup, Selenium, and luigi. Furthermore, the easiest way to set up the appropriate environment is through Anaconda, where one can set up a virtual environment, from which all the necessary packages can be installed with the following command:
